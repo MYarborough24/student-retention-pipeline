@@ -1,0 +1,48 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from imblearn.over_sampling import SMOTE
+from fpdf import FPDF
+
+# Load data
+df = pd.read_csv("data/cohort_data_2022_2024.csv")
+
+# Clean data
+df = df.dropna()
+df = df[df['hs_gpa'] > 0]
+
+# Feature engineering
+df['risk_load'] = df['hrs_enrolled'] < 12
+
+# Split features and label
+X = df.drop(columns=['ret_label','ret_label_b'])
+y = df['ret_label_b']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=42, stratify=y
+)
+
+# Handle class imbalance
+sm = SMOTE(random_state=42)
+X_res, y_res = sm.fit_resample(X_train, y_train)
+
+# Train model
+model = RandomForestClassifier(n_estimators=300, random_state=42)
+model.fit(X_res, y_res)
+
+# Evaluate model
+pred = model.predict(X_test)
+report = classification_report(y_test, pred)
+
+# Generate report
+pdf = FPDF()
+pdf.add_page()
+pdf.set_font("Arial", size=12)
+
+pdf.multi_cell(0,8,"Student Retention Pipeline Report\n\n")
+pdf.multi_cell(0,8,report)
+
+pdf.output("reports/retention_report.pdf")
+
+print("Pipeline completed successfully.")
